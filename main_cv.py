@@ -69,7 +69,7 @@ print(train_dataset.shape)
 # Q - Query data   : used to optimize the cross_entropy loss
 
 # The data is arranged in the format : [class_it_belongs_to, samples, img_h, img_w, img_channels] ...
-# ... for our simplicity, when passed to encoder, it's reshaped to [no_images, img_h, img_w, img_c] ...
+# ... for our simplicity. When passed to encoder, it's reshaped to [no_images, img_h, img_w, img_c] ...
 # ... by multiplying the first 2 dimensions.
 
 
@@ -125,18 +125,23 @@ for ep in range(n_epochs):
 
 root_dir = './data/omniglot'
 test_split_path = os.path.join(root_dir, 'splits', 'test.txt')
+
 with open(test_split_path, 'r') as test_split:
     test_classes = [line.rstrip() for line in test_split.readlines()]
+
 n_test_classes = len(test_classes)
 test_dataset = np.zeros([n_test_classes, n_examples, im_height, im_width], dtype=np.float32)
+
 for i, tc in enumerate(test_classes):
     alphabet, character, rotation = tc.split('/')
     rotation = float(rotation[3:])
     im_dir = os.path.join(root_dir, 'data', alphabet, character)
     im_files = sorted(glob.glob(os.path.join(im_dir, '*.png')))
+    
     for j, im_file in enumerate(im_files):
         im = 1. - np.array(Image.open(im_file).rotate(rotation).resize((im_width, im_height)), np.float32, copy=False)
         test_dataset[i, j] = im
+
 print(test_dataset.shape)
 
 n_test_iters = 1000
@@ -147,19 +152,25 @@ n_test_query = 15
 print('Testing...')
 avg_acc = 0.
 for epi in range(n_test_iters):
+    
     epi_classes = np.random.permutation(n_test_classes)[:n_test_totclass]
     support = np.zeros([n_test_totclass, n_test_support, im_height, im_width], dtype=np.float32)
     query = np.zeros([n_test_totclass, n_test_query, im_height, im_width], dtype=np.float32)
+    
     for i, epi_cls in enumerate(epi_classes):
         selected = np.random.permutation(n_examples)[:n_test_support + n_test_query]
         support[i] = test_dataset[epi_cls, selected[:n_test_support]]
         query[i] = test_dataset[epi_cls, selected[n_test_support:]]
+    
     support = np.expand_dims(support, axis=-1)
     query = np.expand_dims(query, axis=-1)
     labels = np.tile(np.arange(n_test_totclass)[:, np.newaxis], (1, n_test_query)).astype(np.uint8)
+    
     ls, ac = sess.run([ce_loss, acc], feed_dict={x: support, q: query, y:labels})
     avg_acc += ac
+    
     if (epi+1) % 50 == 0:
         print('[test episode {}/{}] => loss: {:.5f}, acc: {:.5f}'.format(epi+1, n_test_iters, ls, ac))
+
 avg_acc /= n_test_iters
 print('Average Test Accuracy: {:.5f}'.format(avg_acc))
