@@ -45,18 +45,23 @@ z_dim = 64
 # Load Train Dataset
 root_dir = './data/omniglot'
 train_split_path = os.path.join(root_dir, 'splits', 'train.txt')
+
 with open(train_split_path, 'r') as train_split:
     train_classes = [line.rstrip() for line in train_split.readlines()]
+
 n_classes = len(train_classes)
 train_dataset = np.zeros([n_classes, n_examples, im_height, im_width], dtype=np.float32)
+
 for i, tc in enumerate(train_classes):
     alphabet, character, rotation = tc.split('/')
     rotation = float(rotation[3:])
     im_dir = os.path.join(root_dir, 'data', alphabet, character)
     im_files = sorted(glob.glob(os.path.join(im_dir, '*.png')))
+    
     for j, im_file in enumerate(im_files):
         im = 1. - np.array(Image.open(im_file).rotate(rotation).resize((im_width, im_height)), np.float32, copy=False)
         train_dataset[i, j] = im
+
 print(train_dataset.shape)
 
 
@@ -93,28 +98,28 @@ acc = tf.reduce_mean(tf.to_float(tf.equal(tf.argmax(log_p_y, axis=-1), y)))
 
 train_op = tf.train.AdamOptimizer().minimize(ce_loss)
 
-with tf.Session() as sess:
-    sess.run(tf.global_variables_initializer())
+sess = tf.InteractiveSession()
+sess.run(tf.global_variables_initializer())
 
-    for ep in range(n_epochs):
-        for epi in range(n_iters):
+for ep in range(n_epochs):
+    for epi in range(n_iters):
+        
+        epi_classes = np.random.permutation(n_classes)[:n_totclass]
+        support = np.zeros([n_totclass, n_support, im_height, im_width], dtype=np.float32)
+        query = np.zeros([n_totclass, n_query, im_height, im_width], dtype=np.float32)
+        
+        for i, epi_cls in enumerate(epi_classes):
+            selected = np.random.permutation(n_examples)[:n_support + n_query]
+            support[i] = train_dataset[epi_cls, selected[:n_support]]
+            query[i] = train_dataset[epi_cls, selected[n_support:]]
             
-            epi_classes = np.random.permutation(n_classes)[:n_totclass]
-            support = np.zeros([n_totclass, n_support, im_height, im_width], dtype=np.float32)
-            query = np.zeros([n_totclass, n_query, im_height, im_width], dtype=np.float32)
+        support = np.expand_dims(support, axis=-1)
+        query = np.expand_dims(query, axis=-1)
+        labels = np.tile(np.arange(n_totclass)[:, np.newaxis], (1, n_query)).astype(np.uint8)
             
-            for i, epi_cls in enumerate(epi_classes):
-                selected = np.random.permutation(n_examples)[:n_support + n_query]
-                support[i] = train_dataset[epi_cls, selected[:n_support]]
-                query[i] = train_dataset[epi_cls, selected[n_support:]]
-            
-            support = np.expand_dims(support, axis=-1)
-            query = np.expand_dims(query, axis=-1)
-            labels = np.tile(np.arange(n_totclass)[:, np.newaxis], (1, n_query)).astype(np.uint8)
-            
-            _, ls, ac = sess.run([train_op, ce_loss, acc], feed_dict={x: support, q: query, y:labels})
-            if (epi+1) % 50 == 0:
-                print('[epoch {}/{}, episode {}/{}] => loss: {:.5f}, acc: {:.5f}'.format(ep+1, n_epochs, epi+1, n_iters, ls, ac))
+        _, ls, ac = sess.run([train_op, ce_loss, acc], feed_dict={x: support, q: query, y:labels})
+        if (epi+1) % 50 == 0:
+            print('[epoch {}/{}, episode {}/{}] => loss: {:.5f}, acc: {:.5f}'.format(ep+1, n_epochs, epi+1, n_iters, ls, ac))
 
 # TEST
 
