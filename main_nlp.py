@@ -11,9 +11,6 @@ from keras.layers import LSTM, Dense
 from keras.preprocessing import sequence
 from keras.layers.embeddings import Embedding
 
-# I/P - LSTM Shape : [samples, steps]
-#def create_encoder(emb_len, z_dim)
-
 def encoder(x, emb_len, z_dim, reuse=False):
     with tf.variable_scope('encoder', reuse=reuse):
         net = Embedding(top_words, emb_len, input_length=steps)(x)
@@ -49,7 +46,7 @@ z_dim = 64
 
 
 '''
-# NLP data - will modify this for the req
+# TODO NLP data - will modify this for the req
 
 root_dir = './data/dataset_name'
 train_split_path = os.path.join(root_dir, 'splits', 'train.txt')
@@ -139,33 +136,6 @@ for ep in range(n_epochs):
         if (epi+1) % 50 == 0:
             print('[epoch {}/{}, episode {}/{}] => loss: {:.5f}, acc: {:.5f}'.format(ep+1, n_epochs, epi+1, n_iters, ls, ac))
 
-# TEST
-
-'''
-root_dir = './data/omniglot'
-test_split_path = os.path.join(root_dir, 'splits', 'test.txt')
-
-with open(test_split_path, 'r') as test_split:
-    test_classes = [line.rstrip() for line in test_split.readlines()]
-
-n_test_classes = len(test_classes)
-test_dataset = np.zeros([n_test_classes, n_examples, steps, ], dtype=np.float32)
-
-
-for i, tc in enumerate(test_classes):
-    alphabet, character, rotation = tc.split('/')
-    rotation = float(rotation[3:])
-    im_dir = os.path.join(root_dir, 'data', alphabet, character)
-    im_files = sorted(glob.glob(os.path.join(im_dir, '*.png')))
-    
-    for j, im_file in enumerate(im_files):
-        im = 1. - np.array(Image.open(im_file).rotate(rotation).resize((, steps)), np.float32, copy=False)
-        test_dataset[i, j] = im
-
-print(test_dataset.shape)
-
-'''
-
 n_test_iters = 1000
 n_test_totclass = 46
 n_test_support = 5
@@ -182,6 +152,8 @@ for i in range(n_test_totclass):
         test_dataset[i, j] = class_vec[j].astype(np.float32)
 
 print(test_dataset.shape)
+
+# TODO : Modify ^ for the real dataset.
 
 print('Testing...')
 avg_acc = 0.
