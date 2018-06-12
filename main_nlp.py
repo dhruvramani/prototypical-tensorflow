@@ -6,15 +6,18 @@ import numpy as np
 import tensorflow as tf
 from keras import backend as K
 from keras.datasets import reuters
+from keras.models import Sequential
 from keras.layers import LSTM, Dense
 from keras.preprocessing import sequence
 from keras.layers.embeddings import Embedding
 
 # I/P - LSTM Shape : [samples, steps]
+#def create_encoder(emb_len, z_dim)
+
 def encoder(x, emb_len, z_dim, reuse=False):
     with tf.variable_scope('encoder', reuse=reuse):
-        net = Embedding(top_words, emb_len, input_length=steps)
-        net = LSTM(128, name='lstm')(x)
+        net = Embedding(top_words, emb_len, input_length=steps)(x)
+        net = LSTM(128, name='lstm')(net)
         net = Dense(z_dim)(net)
         net = tf.contrib.layers.flatten(net)
         return net
@@ -99,6 +102,8 @@ y_one_hot = tf.one_hot(y, depth=num_classes)
 
 emb_x = encoder(tf.reshape(x, [num_classes * num_support, steps]), emb_len, z_dim)
 emb_dim = tf.shape(emb_x)[-1]
+
+
 emb_x = tf.reduce_mean(tf.reshape(emb_x, [num_classes, num_support, emb_dim]), axis=1)
 
 emb_q = encoder(tf.reshape(q, [num_classes * num_queries, steps]), emb_len, z_dim, reuse=True)
@@ -126,8 +131,8 @@ for ep in range(n_epochs):
             support[i] = train_dataset[epi_cls, selected[:n_support]]
             query[i] = train_dataset[epi_cls, selected[n_support:]]
             
-        support = np.expand_dims(support, axis=-1)
-        query = np.expand_dims(query, axis=-1)
+        #support = np.expand_dims(support, axis=-1)
+        #query = np.expand_dims(query, axis=-1)
         labels = np.tile(np.arange(n_totclass)[:, np.newaxis], (1, n_query)).astype(np.uint8)
             
         _, ls, ac = sess.run([train_op, ce_loss, acc], feed_dict={x: support, q: query, y:labels})
@@ -137,9 +142,6 @@ for ep in range(n_epochs):
 # TEST
 
 '''
-x_test = sequence.pad_sequences(x_test, maxlen=steps)
-
-
 root_dir = './data/omniglot'
 test_split_path = os.path.join(root_dir, 'splits', 'test.txt')
 
@@ -148,6 +150,7 @@ with open(test_split_path, 'r') as test_split:
 
 n_test_classes = len(test_classes)
 test_dataset = np.zeros([n_test_classes, n_examples, steps, ], dtype=np.float32)
+
 
 for i, tc in enumerate(test_classes):
     alphabet, character, rotation = tc.split('/')
@@ -161,10 +164,24 @@ for i, tc in enumerate(test_classes):
 
 print(test_dataset.shape)
 
+'''
+
 n_test_iters = 1000
-n_test_totclass = 20
+n_test_totclass = 46
 n_test_support = 5
 n_test_query = 15
+
+test_dataset = np.zeros([n_test_totclass, n_examples, steps], dtype=np.float32)
+
+x_test = sequence.pad_sequences(x_test, maxlen=steps)
+
+for i in range(n_test_totclass):
+    indices = np.where(y_test == i)[0]
+    class_vec = x_test[indices]
+    for j in range(min(n_examples, indices.shape[0])):
+        test_dataset[i, j] = class_vec[j].astype(np.float32)
+
+print(test_dataset.shape)
 
 print('Testing...')
 avg_acc = 0.
@@ -179,8 +196,8 @@ for epi in range(n_test_iters):
         support[i] = test_dataset[epi_cls, selected[:n_test_support]]
         query[i] = test_dataset[epi_cls, selected[n_test_support:]]
     
-    support = np.expand_dims(support, axis=-1)
-    query = np.expand_dims(query, axis=-1)
+    #support = np.expand_dims(support, axis=-1)
+    #query = np.expand_dims(query, axis=-1)
     labels = np.tile(np.arange(n_test_totclass)[:, np.newaxis], (1, n_test_query)).astype(np.uint8)
     
     ls, ac = sess.run([ce_loss, acc], feed_dict={x: support, q: query, y:labels})
@@ -191,4 +208,3 @@ for epi in range(n_test_iters):
 
 avg_acc /= n_test_iters
 print('Average Test Accuracy: {:.5f}'.format(avg_acc))
-'''
