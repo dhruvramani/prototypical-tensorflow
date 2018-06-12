@@ -1,12 +1,12 @@
 from __future__ import print_function
-from PIL import Image
 import numpy as np
 import tensorflow as tf
+from keras import backend as K
+from keras.layers import LSTM
 import os
 import glob
-import matplotlib.pyplot as plt
 
-def conv_block(inputs, out_channels, name='conv'):
+'''def conv_block(inputs, out_channels, name='conv'):
     with tf.variable_scope(name):
         conv = tf.layers.conv2d(inputs, out_channels, kernel_size=3, padding='SAME')
         conv = tf.contrib.layers.batch_norm(conv, updates_collections=None, decay=0.99, scale=True, center=True)
@@ -21,7 +21,12 @@ def encoder(x, h_dim, z_dim, reuse=False):
         net = conv_block(net, h_dim, name='conv_3')
         net = conv_block(net, z_dim, name='conv_4')
         net = tf.contrib.layers.flatten(net)
-        return net
+        return net'''
+
+# LSTM Shape : [batch, steps, vector_dim]
+def encoder(x, reuse=False):
+    with tf.variable_scope('encoder', reuse=reuse):
+        net = LSTM()
 
 def euclidean_distance(a, b):
     # a.shape = N x D
@@ -99,6 +104,7 @@ acc = tf.reduce_mean(tf.to_float(tf.equal(tf.argmax(log_p_y, axis=-1), y)))
 train_op = tf.train.AdamOptimizer().minimize(ce_loss)
 
 sess = tf.InteractiveSession()
+K.set_session(sess)
 sess.run(tf.global_variables_initializer())
 
 for ep in range(n_epochs):
